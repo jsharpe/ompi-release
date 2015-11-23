@@ -120,12 +120,14 @@ const opal_event_component_t mca_event_libevent2021_component = {
     }
 };
 
+#define BUFF_SIZE 1024
+
 static int libevent2021_register (void)
-{ 
+{
     const struct eventop** _eventop = eventops;
-    char available_eventops[1024] = "none";
+    char available_eventops[BUFF_SIZE] = "none";
     char *help_msg = NULL;
-    int ret, len = 1024;
+    int ret, len = BUFF_SIZE - 1;
 
     /* Retrieve the upper level specified event system, if any.
      * Default to select() on OS X and poll() everywhere else because
@@ -154,6 +156,7 @@ static int libevent2021_register (void)
 
     if (NULL != (*_eventop)) {
         available_eventops[0] = '\0';
+	len = BUFF_SIZE - strlen(available_eventops) - 1;
     }
 
     while( NULL != (*_eventop) ) {
@@ -163,7 +166,7 @@ static int libevent2021_register (void)
         (void) strncat (available_eventops, (*_eventop)->name,
                         len);
         _eventop++;  /* go to the next available eventop */
-        len = 1024 - strlen(available_eventops);
+        len = BUFF_SIZE - strlen(available_eventops) - 1;
     }
 
 #ifdef __APPLE__

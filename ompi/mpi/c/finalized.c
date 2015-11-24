@@ -36,8 +36,6 @@ static const char FUNC_NAME[] = "MPI_Finalized";
 
 int MPI_Finalized(int *flag) 
 {
-    MPI_Comm null = NULL;
-
     OPAL_CR_NOOP_PROGRESS();
 
     if (MPI_PARAM_CHECK) {
@@ -51,7 +49,10 @@ int MPI_Finalized(int *flag)
                 return OMPI_ERRHANDLER_INVOKE(MPI_COMM_WORLD, MPI_ERR_ARG,
                                               FUNC_NAME);
             } else {
-                return OMPI_ERRHANDLER_INVOKE(null, MPI_ERR_ARG,
+                /* We have no MPI object here so call ompi_errhandle_invoke
+                   directly */
+                return ompi_errhandler_invoke(NULL, NULL, -1,
+                                              ompi_errcode_get_mpi_code(13),
                                               FUNC_NAME);
             }
         }

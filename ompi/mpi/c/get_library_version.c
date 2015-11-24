@@ -38,7 +38,6 @@ static const char FUNC_NAME[] = "MPI_Get_library_version";
 int MPI_Get_library_version(char *version, int *resultlen) 
 {
     int len_left;
-    MPI_Comm null = MPI_COMM_NULL;
     char *ptr, tmp[MPI_MAX_LIBRARY_VERSION_STRING];
 
     OPAL_CR_NOOP_PROGRESS();
@@ -61,7 +60,10 @@ int MPI_Get_library_version(char *version, int *resultlen)
                 return OMPI_ERRHANDLER_INVOKE(MPI_COMM_WORLD, MPI_ERR_ARG,
                                               FUNC_NAME);
             } else {
-                return OMPI_ERRHANDLER_INVOKE(null, MPI_ERR_ARG,
+                /* We have no MPI object here so call ompi_errhandle_invoke
+                   directly */
+                return ompi_errhandler_invoke(NULL, NULL, -1,
+                                              ompi_errcode_get_mpi_code(13), 
                                               FUNC_NAME);
             }
         }

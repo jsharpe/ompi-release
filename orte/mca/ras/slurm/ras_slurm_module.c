@@ -156,6 +156,9 @@ static int init(void)
         if (ORTE_SUCCESS != read_ip_port(mca_ras_slurm_component.config_file,
                                          &slurm_host, &port) ||
             NULL == slurm_host || 0 == port) {
+            if (NULL != slurm_host) {
+                free(slurm_host);
+            }
             return ORTE_ERR_SILENT;
         }
         OPAL_OUTPUT_VERBOSE((2, orte_ras_base_framework.framework_output,
@@ -190,6 +193,7 @@ static int init(void)
         if (connect(socket_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
             orte_show_help("help-ras-slurm.txt", "connection-failed",
                            true, slurm_host, (int)port);
+            free(slurm_host);
             return ORTE_ERR_SILENT;
         }
 
@@ -197,12 +201,14 @@ static int init(void)
         if ((flags = fcntl(socket_fd, F_GETFL, 0)) < 0) {
             opal_output(0, "ras:slurm:dyn: fcntl(F_GETFL) failed: %s (%d)",
                         strerror(opal_socket_errno), opal_socket_errno);
+            free(slurm_host);
             return ORTE_ERROR;
         } else {
             flags |= O_NONBLOCK;
             if (fcntl(socket_fd, F_SETFL, flags) < 0) {
                 opal_output(0, "ras:slurm:dyn: fcntl(F_SETFL) failed: %s (%d)",
                             strerror(opal_socket_errno), opal_socket_errno);
+                free(slurm_host);
                 return ORTE_ERROR;
             }
         }
@@ -214,6 +220,7 @@ static int init(void)
 
         /* initialize the list of jobs for tracking dynamic allocations */
         OBJ_CONSTRUCT(&jobs, opal_list_t);
+        free(slurm_host);
     }
     return ORTE_SUCCESS;
 }
@@ -833,12 +840,18 @@ static void recv_data(int fd, short args, void *cbdata)
         if (ORTE_SUCCESS != parse_alloc_msg(alloc[i], &idx, &sjob, &nodelist, &tpn)) {
             orte_show_help("help-ras-slurm.txt", "slurm-dyn-alloc-failed", true, jtrk->cmd);
             ORTE_ACTIVATE_JOB_STATE(jdata, ORTE_JOB_STATE_ALLOC_FAILED);
+            if (NULL != nodelist) {
+                free(nodelist);
+            }
+            free(tpn);
             return;
         }
         if (idx < 0 || NULL == (app = (orte_app_context_t*)opal_pointer_array_get_item(jdata->apps, idx))) {
             orte_show_help("help-ras-slurm.txt", "slurm-dyn-alloc-failed", true, jtrk->cmd);
             ORTE_ACTIVATE_JOB_STATE(jdata, ORTE_JOB_STATE_ALLOC_FAILED);
             opal_argv_free(alloc);
+            free(nodelist);
+            free(tpn);
             return;
         }
         /* track the Slurm jobid */
@@ -855,6 +868,8 @@ static void recv_data(int fd, short args, void *cbdata)
             ORTE_ERROR_LOG(rc);
             ORTE_ACTIVATE_JOB_STATE(jdata, ORTE_JOB_STATE_ALLOC_FAILED);
             opal_argv_free(alloc);
+            free(nodelist);
+            free(tpn);
             return;
         }
         /* transfer the discovered nodes to our node list, and construct
@@ -1072,6 +1087,9 @@ static int parse_alloc_msg(char *msg, int *idx, int *sjob,
             found++;
         } else if (NULL != strstr(p_str, "allocated_node_list")) {
             pos = strchr(p_str, '=');
+            if (NULL != *nodelist) {
+                free(*nodelist);
+            }
             *nodelist = strdup(pos+1);
             found++;
         } else if (NULL != strstr(p_str, "tasks_per_node")) {
